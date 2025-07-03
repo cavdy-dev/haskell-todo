@@ -21,23 +21,35 @@ type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
                 :<|> "todos" :> Get '[HTML] (Html ()) -- "/todos" Post ()
                 :<|> "todo" :> ReqBody '[JSON] NewTodo :> Post '[HTML] (Html ()) -- "/todo" Post ()
                 :<|> "todo" :> ReqBody '[JSON] EditTodo :> Put '[JSON] () -- "/todo" Put ()
-                :<|> "todo-completed" :> ReqBody '[JSON] CompletedTodo :> Put '[JSON] () -- "/todo-completed" Put ()
                 :<|> "todo" :> Capture "id" Int :> Delete '[JSON] NoContent -- "/todo/:id" Delete ()
 
 -- Implement UI page
 todoItem :: Int -> Text -> Html ()
 todoItem todoId title = 
-  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item"] $ do
-    p_ [ class_ "text-sm/6 font-semibold text-gray-900" ] (toHtml title)
-    button_ 
-      [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
-      , makeAttribute "hx-target" "closest li", makeAttribute "hx-swap" "delete", makeAttribute "hx-delete" ("/todo/" <> T.pack (show todoId))
-      ] "Delete"
+  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item", makeAttribute "x-data" ("{ editMode: false, titleValue: \"" <> title <> "\", editTitle: \"" <> title <> "\" }")] $ do
+    div_ [class_ "flex items-center w-full", makeAttribute "x-show" "!editMode"] $ do
+      p_ [ class_ "text-sm/6 font-semibold text-gray-900", makeAttribute "x-text" "editTitle", id_ ("todo-list-item-" <> T.pack (show todoId)) ] (toHtml title)
+      button_ 
+        [ class_ "ml-auto mr-4 border border-green-500 text-green-500 px-3 py-1 h-full cursor-pointer rounded", makeAttribute "@click" "editMode = true"] "Edit"
+      button_ 
+        [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
+        , makeAttribute "hx-target" "closest li", makeAttribute "hx-swap" "delete", makeAttribute "hx-delete" ("/todo/" <> T.pack (show todoId))
+        ] "Delete"
+    form_ [class_ "w-full flex items-center", makeAttribute "hx-post" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "x-show" "editMode"] $ do
+        input_ [id_ "todo-input-id", class_ "hidden w-40 outline-none border-none", type_ "text", name_ "editId", value_ (T.pack (show todoId))]
+        input_ [id_ "todo-input-title", class_ "w-40 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "editTitle", makeAttribute "x-model" "titleValue"]
+        button_
+          [ class_ "ml-auto mr-4 border border-green-500 px-3 py-1 h-full cursor-pointer rounded"
+          , makeAttribute "@click" "editTitle = titleValue"
+          ] "Save"
+        button_
+          [ class_ "border border-red-500 px-3 py-1 h-full cursor-pointer rounded"
+          , makeAttribute "@click" "editMode = false", type_ "button"] "Cancel"
 
 todoList :: [Todo] -> Html ()
 todoList todos = do
   ul_ [role_ "list", class_ "divide-y divide-gray-200 my-6 space-y-4", id_ "todo-items"] $ do
-    mapM_ (\(Todo tid title _) -> todoItem tid title) todos
+    mapM_ (\(Todo tid title) -> todoItem tid title) todos
 
 landingPage :: Html ()
 landingPage = do
@@ -48,6 +60,7 @@ landingPage = do
       link_ [rel_ "stylesheet", href_ "/static/output.css"]
       with (script_ "") [src_ "/static/htmx.min.js"]
       with (script_ "") [src_ "/static/htmx-json.js"]
+      with (script_ "") [src_ "https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.9/cdn.min.js", integrity_ "sha512-KSdieUYxSxr/laB3Bh5TP8GAng49b2qRfdcnFvh8OuPpPgksA189OQ9v1A3gIz5P9s3A4aXMe5uiHLMfla60Uw==", crossorigin_ "anonymous", defer_ "true"]
     body_ [class_ "mx-auto max-w-3xl my-4 flex flex-col items-center justify-center"] $ do
       h1_ [class_ "text-3xl font-bold mb-4"] "Todo App"
       p_ [class_ "text-base font-medium mb-6"] "List of things to do"
@@ -91,18 +104,13 @@ updateTodo todo = do
   liftIO $ updateTodoQuery todo
   pure ()
 
-completedTodo :: CompletedTodo -> Handler ()
-completedTodo todo = do
-  liftIO $ completedTodoQuery todo
-  pure ()
-
 deleteTodo :: Int -> Handler NoContent
 deleteTodo todoId = do
   liftIO $ deleteTodoQuery todoId
   pure NoContent
 
 todoAPI :: Server TodoAPI
-todoAPI = (entryPoint :<|> fetchTodos :<|> createTodo :<|> updateTodo :<|> completedTodo :<|> deleteTodo)
+todoAPI = (entryPoint :<|> fetchTodos :<|> createTodo :<|> updateTodo :<|> deleteTodo)
 
 staticFilesServer :: Server ("static" :> Raw)
 staticFilesServer = serveDirectoryFileServer "static"

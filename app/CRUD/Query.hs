@@ -13,7 +13,6 @@ import Data.Text (Text)
 data Todo = Todo {
   todoId :: Int
   , title :: Text
-  , completed :: Bool
 } deriving (Eq,Show,FromRow,ToRow,Generic,ToJSON,FromJSON)
 
 data NewTodo = NewTodo {
@@ -23,11 +22,6 @@ data NewTodo = NewTodo {
 data EditTodo = EditTodo {
   editTitle :: Text
   ,editId :: Int
-} deriving (Eq,Show,FromRow,ToRow,Generic,ToJSON,FromJSON)
-
-data CompletedTodo = CompletedTodo {
-  completedState :: Bool
-  ,completedId :: Int
 } deriving (Eq,Show,FromRow,ToRow,Generic,ToJSON,FromJSON)
 
 getConn :: IO Connection
@@ -46,21 +40,21 @@ getConn = do
     }
 
   -- Create todo table if not exist
-  _ <- execute_ conn "CREATE TABLE IF NOT EXISTS todos (id SERIAL PRIMARY KEY, title VARCHAR, completed BOOLEAN)"
+  _ <- execute_ conn "CREATE TABLE IF NOT EXISTS todos (id SERIAL PRIMARY KEY, title VARCHAR)"
 
   pure conn
 
 fetchTodosQuery :: IO [Todo]
 fetchTodosQuery = do
   conn <- getConn
-  todos <- query_ conn "SELECT * FROM todos;"
+  todos <- query_ conn "SELECT id, title FROM todos;"
   close conn
   pure todos
 
 createTodoQuery :: NewTodo -> IO Todo
 createTodoQuery todo = do
   conn <- getConn
-  results <- query conn "INSERT INTO todos (title, completed) VALUES (?, FALSE) RETURNING id, title, completed;" (Only (newTitle todo))
+  results <- query conn "INSERT INTO todos (title) VALUES (?) RETURNING id, title;" (Only (newTitle todo))
   close conn
   case results of
     [todo'] -> pure todo'
@@ -71,12 +65,6 @@ updateTodoQuery :: EditTodo -> IO ()
 updateTodoQuery todo = do
   conn <- getConn
   _ <- execute conn "UPDATE todos SET title = ? WHERE id = ?;" (editTitle todo, editId todo)
-  close conn
-
-completedTodoQuery :: CompletedTodo -> IO ()
-completedTodoQuery todo = do
-  conn <- getConn
-  _ <- execute conn "UPDATE todos SET completed = ? WHERE id = ?;" (completedState todo, completedId todo)
   close conn
 
 deleteTodoQuery :: Int -> IO ()
