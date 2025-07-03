@@ -7,7 +7,7 @@ import Network.Wai
 import Servant.Server
 import Servant.HTML.Lucid
 import Servant.Server.StaticFiles (serveDirectoryFileServer)
-import Servant ((:>),Get,JSON,(:<|>)(..),ReqBody,Post,Put,Delete,Capture,Raw,NoContent(..))
+import Servant ((:>),Get,JSON,(:<|>)(..),ReqBody,Post,Patch,Delete,Capture,Raw,NoContent(..))
 import Data.Proxy
 import CRUD.Query
 import Control.Monad.IO.Class
@@ -20,13 +20,13 @@ import Data.Text (Text)
 type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
                 :<|> "todos" :> Get '[HTML] (Html ()) -- "/todos" Post ()
                 :<|> "todo" :> ReqBody '[JSON] NewTodo :> Post '[HTML] (Html ()) -- "/todo" Post ()
-                :<|> "todo" :> ReqBody '[JSON] EditTodo :> Put '[JSON] () -- "/todo" Put ()
+                :<|> "todo" :> ReqBody '[JSON] EditTodo :> Patch '[JSON] () -- "/todo" Patch ()
                 :<|> "todo" :> Capture "id" Int :> Delete '[JSON] NoContent -- "/todo/:id" Delete ()
 
 -- Implement UI page
 todoItem :: Int -> Text -> Html ()
 todoItem todoId title = 
-  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item", makeAttribute "x-data" ("{ editMode: false, titleValue: \"" <> title <> "\", editTitle: \"" <> title <> "\" }")] $ do
+  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item", makeAttribute "x-data" ("{ editMode: false, titleValue: \"" <> title <> "\", editTitle: \"" <> title <> "\",setData() {this.editTitle = this.titleValue}}")] $ do
     div_ [class_ "flex items-center w-full", makeAttribute "x-show" "!editMode"] $ do
       p_ [ class_ "text-sm/6 font-semibold text-gray-900", makeAttribute "x-text" "editTitle", id_ ("todo-list-item-" <> T.pack (show todoId)) ] (toHtml title)
       button_ 
@@ -35,7 +35,7 @@ todoItem todoId title =
         [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
         , makeAttribute "hx-target" "closest li", makeAttribute "hx-swap" "delete", makeAttribute "hx-delete" ("/todo/" <> T.pack (show todoId))
         ] "Delete"
-    form_ [class_ "w-full flex items-center", makeAttribute "hx-post" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "x-show" "editMode"] $ do
+    form_ [class_ "w-full flex items-center", makeAttribute "hx-patch" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "x-show" "editMode", makeAttribute "hx-on" "htmx:afterRequest: setData()"] $ do
         input_ [id_ "todo-input-id", class_ "hidden w-40 outline-none border-none", type_ "text", name_ "editId", value_ (T.pack (show todoId))]
         input_ [id_ "todo-input-title", class_ "w-40 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "editTitle", makeAttribute "x-model" "titleValue"]
         button_

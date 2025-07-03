@@ -9,6 +9,7 @@ import Database.PostgreSQL.Simple
 import GHC.Generics
 import Data.Aeson
 import Data.Text (Text)
+import qualified Data.Text as T
 
 data Todo = Todo {
   todoId :: Int
@@ -21,7 +22,7 @@ data NewTodo = NewTodo {
 
 data EditTodo = EditTodo {
   editTitle :: Text
-  ,editId :: Int
+  ,editId :: Text
 } deriving (Eq,Show,FromRow,ToRow,Generic,ToJSON,FromJSON)
 
 getConn :: IO Connection
@@ -63,8 +64,9 @@ createTodoQuery todo = do
 
 updateTodoQuery :: EditTodo -> IO ()
 updateTodoQuery todo = do
+  let tId = read (T.unpack (editId todo)) :: Int
   conn <- getConn
-  _ <- execute conn "UPDATE todos SET title = ? WHERE id = ?;" (editTitle todo, editId todo)
+  _ <- execute conn "UPDATE todos SET title = ? WHERE id = ?;" (editTitle todo, tId)
   close conn
 
 deleteTodoQuery :: Int -> IO ()
