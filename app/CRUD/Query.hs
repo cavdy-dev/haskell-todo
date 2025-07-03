@@ -11,7 +11,7 @@ import Data.Aeson
 import Data.Text (Text)
 
 data Todo = Todo {
-  id :: Int
+  todoId :: Int
   , title :: Text
   , completed :: Bool
 } deriving (Eq,Show,FromRow,ToRow,Generic,ToJSON,FromJSON)
@@ -57,11 +57,15 @@ fetchTodosQuery = do
   close conn
   pure todos
 
-createTodoQuery :: NewTodo -> IO ()
+createTodoQuery :: NewTodo -> IO Todo
 createTodoQuery todo = do
   conn <- getConn
-  _ <- execute conn "INSERT INTO todos (title, completed) VALUES (?, FALSE);" (Only (newTitle todo))
+  results <- query conn "INSERT INTO todos (title, completed) VALUES (?, FALSE) RETURNING id, title, completed;" (Only (newTitle todo))
   close conn
+  case results of
+    [todo'] -> pure todo'
+    []      -> error "No todo returned from INSERT"
+    _       -> error "Multiple todos returned from INSERT"
 
 updateTodoQuery :: EditTodo -> IO ()
 updateTodoQuery todo = do
