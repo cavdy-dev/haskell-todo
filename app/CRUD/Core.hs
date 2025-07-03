@@ -13,15 +13,32 @@ import CRUD.Query
 import Control.Monad.IO.Class
 import Lucid
 import Lucid.Base (makeAttribute)
+import qualified Data.Text as T
+import Data.Text (Text)
 
 
 type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
+                :<|> "todos" :> Get '[HTML] (Html ()) -- "/todos" Post ()
                 :<|> "todo" :> ReqBody '[JSON] NewTodo :> Post '[JSON] () -- "/todo" Post ()
                 :<|> "todo" :> ReqBody '[JSON] EditTodo :> Put '[JSON] () -- "/todo" Put ()
                 :<|> "todo-completed" :> ReqBody '[JSON] CompletedTodo :> Put '[JSON] () -- "/todo-completed" Put ()
                 :<|> "todo" :> Capture "id" Int :> Delete '[JSON] () -- "/todo/:id" Delete ()
 
 -- Implement UI page
+todoItem :: Int -> Text -> Html ()
+todoItem todoId name = 
+  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4" ] $ do
+    p_ [ class_ "text-sm/6 font-semibold text-gray-900" ] (toHtml name)
+    button_ 
+      [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
+      , makeAttribute "hx-post" ("/api/" <> T.pack (show todoId))
+      ] "Delete"
+
+todoList :: [Todo] -> Html ()
+todoList todos = do
+  ul_ [role_ "list", class_ "divide-y divide-gray-200 my-6", id_ "todos"] $ do
+    mapM_ (\(Todo tid name _) -> todoItem tid name) todos
+
 landingPage :: Html ()
 landingPage = do
   doctype_
@@ -34,18 +51,28 @@ landingPage = do
       h1_ [class_ "text-3xl font-bold mb-4"] "Todo App"
       p_ [class_ "text-base font-medium mb-6"] "List of things to do"
 
-      -- You could add some placeholder, or load the list dynamically with htmx GET /api
-      div_ [id_ "todo-list"] "TODO list will appear here."
-      button_ [makeAttribute "hx-get" "/api" , makeAttribute "hx-target" "#todo-list"] "Load Todos"
+      form_ [class_ "w-full bg-gray-200 flex items-center w-sm h-12 rounded-lg", makeAttribute "hx-post" "/todo"] $ do
+        input_ [id_ "todo-input", class_ "w-full h-full rounded-s-lg px-2 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "newTitle"]
+        button_ [class_ "bg-red-500 text-white px-4 h-full cursor-pointer rounded-e-lg"] "Add"
 
--- Server handlers
--- todoUIHandler :: Handler (Html ())
--- todoUIHandler = pure landingPage
+      with (div_ mempty)
+        [ makeAttribute "hx-get" "/todos"
+        , makeAttribute "hx-trigger" "load"
+        , makeAttribute "hx-target" "#result"
+        , makeAttribute "hx-swap" "innerHTML"
+        ]
+
+      with (div_ mempty)
+        [ id_ "result"]
+
+entryPoint :: Handler (Html ())
+entryPoint = do
+  pure landingPage
 
 fetchTodos :: Handler (Html ())
 fetchTodos = do
-  _ <- liftIO fetchTodosQuery
-  pure landingPage
+  todos <- liftIO fetchTodosQuery
+  pure (todoList todos)
 
 createTodo :: NewTodo -> Handler ()
 createTodo todo = do
@@ -68,7 +95,7 @@ deleteTodo todoId = do
   pure ()
 
 todoAPI :: Server TodoAPI
-todoAPI = (fetchTodos :<|> createTodo :<|> updateTodo :<|> completedTodo :<|> deleteTodo)
+todoAPI = (entryPoint :<|> fetchTodos :<|> createTodo :<|> updateTodo :<|> completedTodo :<|> deleteTodo)
 
 staticFilesServer :: Server ("static" :> Raw)
 staticFilesServer = serveDirectoryFileServer "static"
