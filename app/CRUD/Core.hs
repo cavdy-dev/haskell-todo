@@ -12,6 +12,7 @@ import Data.Proxy
 import CRUD.Query
 import Control.Monad.IO.Class
 import Lucid
+import Lucid.Base (makeAttribute)
 
 
 type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
@@ -28,14 +29,14 @@ landingPage = do
     head_ $ do
       title_ "Todo App"
       link_ [rel_ "stylesheet", href_ "/static/output.css"]
-      style_ "body { font-family: sans-serif; }"
-    body_ $ do
-      h1_ "My TODO List"
-      h1_ [class_ "text-3xl font-bold text-blue-600"] "Welcome to Tailwind + Haskell!"
-      p_ "This is the landing page served with htmx-servant and Lucid."
+      with (script_ "") [src_ "/static/htmx.min.js"]
+    body_ [class_ "mx-auto max-w-3xl my-4 flex flex-col items-center justify-center"] $ do
+      h1_ [class_ "text-3xl font-bold mb-4"] "Todo App"
+      p_ [class_ "text-base font-medium mb-6"] "List of things to do"
 
       -- You could add some placeholder, or load the list dynamically with htmx GET /api
       div_ [id_ "todo-list"] "TODO list will appear here."
+      button_ [makeAttribute "hx-get" "/api" , makeAttribute "hx-target" "#todo-list"] "Load Todos"
 
 -- Server handlers
 -- todoUIHandler :: Handler (Html ())
