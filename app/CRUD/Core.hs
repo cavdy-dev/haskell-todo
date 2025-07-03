@@ -7,7 +7,7 @@ import Network.Wai
 import Servant.Server
 import Servant.HTML.Lucid
 import Servant.Server.StaticFiles (serveDirectoryFileServer)
-import Servant ((:>),Get,JSON,(:<|>)(..),ReqBody,Post,Put,Delete,Capture,Raw)
+import Servant ((:>),Get,JSON,(:<|>)(..),ReqBody,Post,Put,Delete,Capture,Raw,NoContent(..))
 import Data.Proxy
 import CRUD.Query
 import Control.Monad.IO.Class
@@ -22,7 +22,7 @@ type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
                 :<|> "todo" :> ReqBody '[JSON] NewTodo :> Post '[HTML] (Html ()) -- "/todo" Post ()
                 :<|> "todo" :> ReqBody '[JSON] EditTodo :> Put '[JSON] () -- "/todo" Put ()
                 :<|> "todo-completed" :> ReqBody '[JSON] CompletedTodo :> Put '[JSON] () -- "/todo-completed" Put ()
-                :<|> "todo" :> Capture "id" Int :> Delete '[JSON] () -- "/todo/:id" Delete ()
+                :<|> "todo" :> Capture "id" Int :> Delete '[JSON] NoContent -- "/todo/:id" Delete ()
 
 -- Implement UI page
 todoItem :: Int -> Text -> Html ()
@@ -31,7 +31,7 @@ todoItem todoId title =
     p_ [ class_ "text-sm/6 font-semibold text-gray-900" ] (toHtml title)
     button_ 
       [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
-      , makeAttribute "hx-post" ("/api/" <> T.pack (show todoId))
+      , makeAttribute "hx-target" "closest li", makeAttribute "hx-swap" "delete", makeAttribute "hx-delete" ("/todo/" <> T.pack (show todoId))
       ] "Delete"
 
 todoList :: [Todo] -> Html ()
@@ -96,10 +96,10 @@ completedTodo todo = do
   liftIO $ completedTodoQuery todo
   pure ()
 
-deleteTodo :: Int -> Handler ()
+deleteTodo :: Int -> Handler NoContent
 deleteTodo todoId = do
   liftIO $ deleteTodoQuery todoId
-  pure ()
+  pure NoContent
 
 todoAPI :: Server TodoAPI
 todoAPI = (entryPoint :<|> fetchTodos :<|> createTodo :<|> updateTodo :<|> completedTodo :<|> deleteTodo)
