@@ -26,7 +26,7 @@ type TodoAPI = Get '[HTML] (Html ()) -- "/" GET [HTML]
 -- Implement UI page
 todoItem :: Int -> Text -> Html ()
 todoItem todoId title = 
-  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item", makeAttribute "x-data" ("{ editMode: false, titleValue: \"" <> title <> "\", editTitle: \"" <> title <> "\",setData() {this.editTitle = this.titleValue}}")] $ do
+  li_ [ class_ "flex items-center justify-between gap-x-4 py-2 w-lg border border-gray-300 rounded px-4", id_ "todo-item", makeAttribute "x-data" ("{ editMode: false, titleValue: \"" <> title <> "\", editTitle: \"" <> title <> "\",setData() {this.editTitle = this.titleValue; this.editMode = false}}")] $ do
     div_ [class_ "flex items-center w-full", makeAttribute "x-show" "!editMode"] $ do
       p_ [ class_ "text-sm/6 font-semibold text-gray-900", makeAttribute "x-text" "editTitle", id_ ("todo-list-item-" <> T.pack (show todoId)) ] (toHtml title)
       button_ 
@@ -35,12 +35,12 @@ todoItem todoId title =
         [ class_ "border border-red-500 text-red-500 px-3 py-1 h-full cursor-pointer rounded"
         , makeAttribute "hx-target" "closest li", makeAttribute "hx-swap" "delete", makeAttribute "hx-delete" ("/todo/" <> T.pack (show todoId))
         ] "Delete"
-    form_ [class_ "w-full flex items-center", makeAttribute "hx-patch" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "x-show" "editMode", makeAttribute "hx-on" "htmx:afterRequest: setData()"] $ do
+    form_ [class_ "w-full flex items-center", makeAttribute "hx-swap" "none", makeAttribute "hx-patch" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "x-show" "editMode"] $ do
         input_ [id_ "todo-input-id", class_ "hidden w-40 outline-none border-none", type_ "text", name_ "editId", value_ (T.pack (show todoId))]
         input_ [id_ "todo-input-title", class_ "w-40 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "editTitle", makeAttribute "x-model" "titleValue"]
         button_
           [ class_ "ml-auto mr-4 border border-green-500 px-3 py-1 h-full cursor-pointer rounded"
-          , makeAttribute "@click" "editTitle = titleValue"
+          , makeAttribute "@click" "setData"
           ] "Save"
         button_
           [ class_ "border border-red-500 px-3 py-1 h-full cursor-pointer rounded"
@@ -65,10 +65,11 @@ landingPage = do
       h1_ [class_ "text-3xl font-bold mb-4"] "Todo App"
       p_ [class_ "text-base font-medium mb-6"] "List of things to do"
 
-      form_ [class_ "w-full bg-gray-200 flex items-center w-sm h-12 rounded-lg", makeAttribute "hx-post" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "hx-target" "#todo-items", makeAttribute "hx-swap" "afterbegin"] $ do
-        input_ [id_ "todo-input", class_ "w-full h-full rounded-s-lg px-2 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "newTitle"]
+      form_ [class_ "w-full bg-gray-200 flex items-center w-sm h-12 rounded-lg", makeAttribute "hx-post" "/todo", makeAttribute "hx-ext" "json-enc", makeAttribute "hx-target" "#todo-items", makeAttribute "hx-swap" "afterbegin", makeAttribute "x-data" "{ title: '' }"] $ do
+        input_ [id_ "todo-input", class_ "w-full h-full rounded-s-lg px-2 outline-none border-none", placeholder_ "Enter todo", type_ "text", name_ "newTitle", makeAttribute "x-model" "title"]
         button_
           [ class_ "bg-red-500 text-white px-4 h-full cursor-pointer rounded-e-lg"
+          , makeAttribute "@click" "setTimeout(() => title = '', 500)"
           ] "Add"
 
 

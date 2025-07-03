@@ -48,7 +48,7 @@ getConn = do
 fetchTodosQuery :: IO [Todo]
 fetchTodosQuery = do
   conn <- getConn
-  todos <- query_ conn "SELECT id, title FROM todos;"
+  todos <- query_ conn "SELECT id, title FROM todos ORDER BY id DESC;"
   close conn
   pure todos
 
